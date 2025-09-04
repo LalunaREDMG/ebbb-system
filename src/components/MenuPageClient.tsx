@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { ChefHat, ArrowLeft, Star, Filter } from 'lucide-react'
 import Link from 'next/link'
 
@@ -61,27 +60,23 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
     return () => cancelAnimationFrame(id)
   }, [selectedMenuPart])
 
-  // Realtime subscription to products for auto updates
+  // Auto-refresh when menu type changes
+  const refreshProducts = async () => {
+    try {
+      const response = await fetch('/api/products')
+      if (response.ok) {
+        const data = await response.json()
+        setLiveProducts(data.products)
+      }
+    } catch (error) {
+      console.error('Error refreshing products:', error)
+    }
+  }
+
+  // Auto-refresh when menu part changes
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) return
-    const supabase = createClient(url, key)
-
-    const channel = supabase
-      .channel('realtime-products')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-        setLiveProducts((prev) => {
-          if (payload.eventType === 'INSERT') return [...prev, payload.new as any]
-          if (payload.eventType === 'UPDATE') return prev.map(p => p.id === (payload.new as any).id ? (payload.new as any) : p)
-          if (payload.eventType === 'DELETE') return prev.filter(p => p.id !== (payload.old as any).id)
-          return prev
-        })
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
+    refreshProducts()
+  }, [selectedMenuPart])
 
   // Map UI selection to database menu_type values (DB keeps 'Evening Menu')
   const menuTypeMap: Record<typeof selectedMenuPart, string> = {
@@ -95,7 +90,7 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
     if (selectedMenuPart === 'morning') return p.menu_type === 'Morning Menu'
     if (selectedMenuPart === 'night') return p.menu_type === 'Evening Menu' || p.menu_type === 'Night Menu'
     return p.menu_type === 'All Day Coffee'
-  })
+  }).filter(p => p.available)
 
   // Compute categories available within the selected menu type
   const availableCategories = Array.from(
@@ -111,17 +106,17 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
 
   // Category counts for each menu type (used in selector cards)
   const morningCategoryCount = Array.from(
-    new Set(liveProducts.filter((p) => p.menu_type === 'Morning Menu').map((p) => p.category))
+    new Set(liveProducts.filter((p) => p.menu_type === 'Morning Menu' && p.available).map((p) => p.category))
   ).length
   const eveningCategoryCount = Array.from(
     new Set(
       liveProducts
-        .filter((p) => p.menu_type === 'Evening Menu' || p.menu_type === 'Night Menu')
+        .filter((p) => (p.menu_type === 'Evening Menu' || p.menu_type === 'Night Menu') && p.available)
         .map((p) => p.category)
     )
   ).length
   const coffeeCategoryCount = Array.from(
-    new Set(liveProducts.filter((p) => p.menu_type === 'All Day Coffee').map((p) => p.category))
+    new Set(liveProducts.filter((p) => p.menu_type === 'All Day Coffee' && p.available).map((p) => p.category))
   ).length
 
   // Group filtered products by category for rendering

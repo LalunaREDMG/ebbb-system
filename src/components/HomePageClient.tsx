@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { ChefHat, Star, ArrowRight, Heart, Award, Zap, Sparkles, Clock, MapPin, Phone, Facebook, Instagram, Twitter, ChevronDown } from 'lucide-react'
 
@@ -71,26 +70,21 @@ export default function HomePageClient({ products, announcements, groupedProduct
     setIsWeekend(day === 0 || day === 6)
   }, [])
 
-  // Realtime subscription for products (live updates)
+  // Auto-refresh products on page load
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) return
-    const supabase = createClient(url, key)
+    const refreshProducts = async () => {
+      try {
+        const response = await fetch('/api/products')
+        if (response.ok) {
+          const data = await response.json()
+          setLiveProducts(data.products)
+        }
+      } catch (error) {
+        console.error('Error refreshing products:', error)
+      }
+    }
 
-    const channel = supabase
-      .channel('realtime-products-home')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-        setLiveProducts((prev) => {
-          if (payload.eventType === 'INSERT') return [...prev, payload.new as any]
-          if (payload.eventType === 'UPDATE') return prev.map(p => p.id === (payload.new as any).id ? (payload.new as any) : p)
-          if (payload.eventType === 'DELETE') return prev.filter(p => p.id !== (payload.old as any).id)
-          return prev
-        })
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
+    refreshProducts()
   }, [])
 
   // Filter out hero announcements to check if we should show the announcements section
@@ -128,7 +122,7 @@ export default function HomePageClient({ products, announcements, groupedProduct
       {/* Menu Section */}
       <MenuSection 
         groupedProducts={groupedProducts} 
-        products={liveProducts} 
+        products={liveProducts.filter(p => p.available)}
       />
 
       {/* Contact & Info Section */}
@@ -231,7 +225,7 @@ function MenuSection({ groupedProducts, products }: { groupedProducts: Record<st
             Chef's Special Selection
           </div>
           <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">Our Signature Dishes</h2>
-          <p className="text-base md:text-lg text-gray-600">Discover our most popular dishes crafted with love using fresh, local ingredients</p>
+          <p className="text-base md:text-lg text-gray-600 mb-4">Discover our most popular dishes crafted with love using fresh, local ingredients</p>
         </div>
 
         {Object.keys(groupedProducts).length > 0 ? (
