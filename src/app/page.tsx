@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 import MobileMenu from '@/components/MobileMenu'
 import HomePageClient from '@/components/HomePageClient'
 
+// Ensure fresh data on production (disable static caching/ISR)
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
+
 interface Product {
   id: string
   name: string

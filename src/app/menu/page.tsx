@@ -3,6 +3,9 @@ import { ChefHat, ArrowLeft, Star, Filter } from 'lucide-react'
 import Link from 'next/link'
 import MenuPageClient from '@/components/MenuPageClient'
 
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
+
 interface Product {
   id: string
   name: string
