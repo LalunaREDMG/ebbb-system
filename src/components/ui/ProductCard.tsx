@@ -10,6 +10,7 @@ interface Product {
   image_url: string | null
   image_path: string | null
   category: string
+  is_signature?: boolean
   available: boolean
 }
 
@@ -18,13 +19,15 @@ interface ProductCardProps {
   index?: number
   showRating?: boolean
   className?: string
+  hideSignatureIcon?: boolean
 }
 
 export default function ProductCard({ 
   product, 
   index = 0, 
   showRating = false, 
-  className = '' 
+  className = '',
+  hideSignatureIcon = false
 }: ProductCardProps) {
   return (
     <div 
@@ -55,8 +58,11 @@ export default function ProductCard({
       {/* Product Info */}
       <div className="p-4 md:p-6">
         <div className="flex justify-between items-start mb-2 md:mb-3">
-          <h4 className="text-lg md:text-xl font-semibold text-gray-900 group-hover:text-orange-500 transition-colors duration-300">
-            {product.name}
+          <h4 className="text-lg md:text-xl font-semibold text-gray-900 group-hover:text-orange-500 transition-colors duration-300 flex items-center gap-2">
+            <span>{product.name}</span>
+            {product.is_signature && !hideSignatureIcon && (
+              <span title="Signature Dish" className="text-yellow-500" aria-label="Signature Dish">⭐</span>
+            )}
           </h4>
           <span className="text-base md:text-lg font-bold text-orange-500 bg-orange-100 px-2 md:px-3 py-1 rounded-full group-hover:bg-orange-200 transition-colors duration-300 text-sm md:text-base">
             ${product.price.toFixed(2)}

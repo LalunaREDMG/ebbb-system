@@ -22,6 +22,9 @@ export interface Product {
   image_url: string | null
   image_path: string | null
   category: string
+  menu_type?: string | null
+  size_variants?: Record<string, number> | null
+  is_signature?: boolean
   available: boolean
   created_at: string
   updated_at: string

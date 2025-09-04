@@ -12,6 +12,8 @@ interface Product {
   image_url: string | null
   image_path: string | null
   category: string
+  menu_type: 'Morning Menu' | 'Night Menu' | 'All Day Coffee' | string
+  size_variants?: Record<string, number> | null
   available: boolean
 }
 
@@ -24,8 +26,9 @@ interface MenuPageClientProps {
 export default function MenuPageClient({ products, groupedProducts, error }: MenuPageClientProps) {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [selectedMenuPart, setSelectedMenuPart] = useState<'morning' | 'evening' | 'all'>('all')
+  const [selectedMenuPart, setSelectedMenuPart] = useState<'morning' | 'night' | 'all'>('all')
   const [isVisible, setIsVisible] = useState(false)
+  const [catVisible, setCatVisible] = useState(true)
 
   useEffect(() => {
     // Simulate loading time for better UX
@@ -45,42 +48,70 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
     const isMorningService = hour < 16 // Morning until 4pm
     
     // Set default menu part based on time
-    setSelectedMenuPart(isMorningService ? 'morning' : 'evening')
+    setSelectedMenuPart(isMorningService ? 'morning' : 'night')
   }, [])
 
-  // Categorize products into menu parts
-  const morningCategories = Object.keys(groupedProducts).filter(category => 
-    ['panini', 'sandwich', 'sandwiches', 'breakfast'].includes(category.toLowerCase())
-  )
-  
-  const eveningCategories = Object.keys(groupedProducts).filter(category => 
-    ['burgers', 'burger', 'mains', 'main', 'dinner', 'entrees'].includes(category.toLowerCase())
-  )
+  // Smoothly animate category chips when menu part changes
+  useEffect(() => {
+    // Hide then immediately show on next frame to trigger transition without perceptible delay
+    setCatVisible(false)
+    const id = requestAnimationFrame(() => setCatVisible(true))
+    return () => cancelAnimationFrame(id)
+  }, [selectedMenuPart])
 
-  const coffeeCategories = Object.keys(groupedProducts).filter(category => 
-    ['coffee', 'drinks', 'beverages', 'smoothies', 'juices'].includes(category.toLowerCase())
-  )
-
-  // Get categories based on selected menu part
-  const getFilteredCategories = () => {
-    switch (selectedMenuPart) {
-      case 'morning':
-        return morningCategories
-      case 'evening':
-        return eveningCategories
-      case 'all':
-        return coffeeCategories // Only show coffee/drinks categories
-      default:
-        return Object.keys(groupedProducts)
-    }
+  // Map UI selection to database menu_type values (DB keeps 'Evening Menu')
+  const menuTypeMap: Record<typeof selectedMenuPart, string> = {
+    morning: 'Morning Menu',
+    night: 'Evening Menu',
+    all: 'All Day Coffee'
   }
 
-  const availableCategories = getFilteredCategories()
+  // Products for the currently selected menu type (support legacy 'Night Menu')
+  const productsForMenuType = products.filter((p) => {
+    if (selectedMenuPart === 'morning') return p.menu_type === 'Morning Menu'
+    if (selectedMenuPart === 'night') return p.menu_type === 'Evening Menu' || p.menu_type === 'Night Menu'
+    return p.menu_type === 'All Day Coffee'
+  })
+
+  // Compute categories available within the selected menu type
+  const availableCategories = Array.from(
+    new Set(productsForMenuType.map((p) => p.category))
+  )
+
   const categories = ['all', ...availableCategories]
-  
-  const filteredProducts = selectedCategory === 'all' 
-    ? products.filter(product => availableCategories.includes(product.category))
-    : groupedProducts[selectedCategory] || []
+
+  // Products filtered by category within the menu type
+  const filteredProducts = selectedCategory === 'all'
+    ? productsForMenuType
+    : productsForMenuType.filter((p) => p.category === selectedCategory)
+
+  // Category counts for each menu type (used in selector cards)
+  const morningCategoryCount = Array.from(
+    new Set(products.filter((p) => p.menu_type === 'Morning Menu').map((p) => p.category))
+  ).length
+  const eveningCategoryCount = Array.from(
+    new Set(
+      products
+        .filter((p) => p.menu_type === 'Evening Menu' || p.menu_type === 'Night Menu')
+        .map((p) => p.category)
+    )
+  ).length
+  const coffeeCategoryCount = Array.from(
+    new Set(products.filter((p) => p.menu_type === 'All Day Coffee').map((p) => p.category))
+  ).length
+
+  // Group filtered products by category for rendering
+  const groupedFilteredProducts = filteredProducts.reduce((acc, product) => {
+    if (!acc[product.category]) acc[product.category] = []
+    acc[product.category].push(product)
+    return acc
+  }, {} as Record<string, Product[]>)
+
+  const allItemsLabel = selectedMenuPart === 'morning'
+    ? 'All Morning Items'
+    : selectedMenuPart === 'night'
+      ? 'All Evening Items'
+      : 'All Coffee Items'
 
   if (loading) {
     return (
@@ -173,8 +204,10 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <button
                 onClick={() => {
+                  setCatVisible(false)
                   setSelectedMenuPart('morning')
                   setSelectedCategory('all')
+                  requestAnimationFrame(() => setCatVisible(true))
                 }}
                 className={`p-4 rounded-xl text-left transition-all duration-300 hover:scale-105 ${
                   selectedMenuPart === 'morning'
@@ -186,22 +219,24 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                   <span className="text-2xl mr-3">🥪</span>
                   <div>
                     <h3 className="font-bold text-gray-900">Morning Menu</h3>
-                    <p className="text-sm text-gray-600">Until 4:00 PM</p>
+                    <p className="text-sm text-gray-600">6:00am - 2:00pm</p>
                   </div>
                 </div>
                 <p className="text-sm text-gray-700">Fresh paninis & sandwiches</p>
                 <div className="mt-2 text-xs text-orange-600 font-medium">
-                  {morningCategories.length} categories available
+                  {morningCategoryCount} categories available
                 </div>
               </button>
 
               <button
                 onClick={() => {
-                  setSelectedMenuPart('evening')
+                  setCatVisible(false)
+                  setSelectedMenuPart('night')
                   setSelectedCategory('all')
+                  requestAnimationFrame(() => setCatVisible(true))
                 }}
                 className={`p-4 rounded-xl text-left transition-all duration-300 hover:scale-105 ${
-                  selectedMenuPart === 'evening'
+                  selectedMenuPart === 'night'
                     ? 'bg-gradient-to-br from-red-100 to-orange-100 border-2 border-red-300 shadow-lg'
                     : 'bg-gray-50 border-2 border-gray-200 hover:bg-gray-100'
                 }`}
@@ -209,20 +244,22 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
               <div className="flex items-center mb-2">
                   <span className="text-2xl mr-3">🍔</span>
                   <div>
-                    <h3 className="font-bold text-gray-900">Evening Menu</h3>
-                    <p className="text-sm text-gray-600">From 4:00 PM</p>
+                    <h3 className="font-bold text-gray-900">Night Menu</h3>
+                    <p className="text-sm text-gray-600">4:00pm - 9:00pm</p>
                   </div>
                 </div>
                 <p className="text-sm text-gray-700">Gourmet burgers & hearty mains</p>
                 <div className="mt-2 text-xs text-red-600 font-medium">
-                  {eveningCategories.length} categories available
+                  {eveningCategoryCount} categories available
                 </div>
               </button>
 
               <button
                 onClick={() => {
+                  setCatVisible(false)
                   setSelectedMenuPart('all')
                   setSelectedCategory('all')
+                  requestAnimationFrame(() => setCatVisible(true))
                 }}
                 className={`p-4 rounded-xl text-left transition-all duration-300 hover:scale-105 ${
                   selectedMenuPart === 'all'
@@ -239,7 +276,7 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                 </div>
                 <p className="text-sm text-gray-700">Coffee, drinks & beverages only</p>
                 <div className="mt-2 text-xs text-green-600 font-medium">
-                  {coffeeCategories.length} categories available
+                  {coffeeCategoryCount} categories available
                 </div>
               </button>
             </div>
@@ -251,10 +288,14 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
               <Filter className="h-4 w-4 mr-2 text-orange-500" />
               Filter by Category
               <span className="ml-2 text-sm font-normal text-gray-500">
-                ({selectedMenuPart === 'morning' ? 'Morning' : selectedMenuPart === 'evening' ? 'Evening' : 'All Day'} Menu)
+                ({selectedMenuPart === 'morning' ? 'Morning' : selectedMenuPart === 'night' ? 'Night' : 'All Day'} Menu)
               </span>
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div
+              className={`flex flex-wrap gap-2 transition-all duration-200 ease-out transform ${
+                catVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              }`}
+            >
               {categories.map((category) => (
                 <button
                   key={category}
@@ -265,21 +306,17 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {category === 'all' ? 'All Items' : category}
+                  {category === 'all' ? allItemsLabel : category}
                 </button>
               ))}
             </div>
           </div>
 
           {/* Menu Items */}
-          {Object.keys(groupedProducts).length > 0 ? (
+          {Object.keys(groupedFilteredProducts).length > 0 ? (
             <div className="space-y-12">
-              {Object.entries(groupedProducts).map(([category, categoryProducts]) => {
-                const categoryFilteredProducts = selectedCategory === 'all' || selectedCategory === category 
-                  ? categoryProducts 
-                  : []
-                
-                if (categoryFilteredProducts.length === 0) return null
+              {Object.entries(groupedFilteredProducts).map(([category, categoryProducts]) => {
+                if (categoryProducts.length === 0) return null
 
                 return (
                   <div key={category} className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
@@ -287,7 +324,7 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                       {category}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {categoryFilteredProducts.map((product, index) => (
+                      {categoryProducts.map((product, index) => (
                         <div 
                           key={product.id} 
                           className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-105 hover:-translate-y-2 overflow-hidden"
@@ -318,7 +355,15 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                                 {product.name}
                               </h3>
                               <span className="text-xl font-bold text-orange-500 bg-orange-100 px-3 py-1 rounded-full group-hover:bg-orange-200 transition-colors duration-300">
-                                ${product.price.toFixed(2)}
+                                {(() => {
+                                  // If coffee item with size variants, show starting price
+                                  if (product.menu_type === 'All Day Coffee' && product.size_variants && Object.keys(product.size_variants).length > 0) {
+                                    const prices = Object.values(product.size_variants).filter((v) => typeof v === 'number') as number[]
+                                    const min = prices.length > 0 ? Math.min(...prices) : product.price
+                                    return `$${min.toFixed(2)}`
+                                  }
+                                  return `$${product.price.toFixed(2)}`
+                                })()}
                               </span>
                             </div>
                             <p className="text-gray-600 text-sm leading-relaxed mb-4">
@@ -337,6 +382,19 @@ export default function MenuPageClient({ products, groupedProducts, error }: Men
                                 <span className="text-sm text-gray-500 ml-1">(4.9)</span>
                               </div>
                             </div>
+
+                            {/* Size variants display for coffee */}
+                            {product.menu_type === 'All Day Coffee' && product.size_variants && Object.keys(product.size_variants).length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {Object.entries(product.size_variants)
+                                  .filter(([_, v]) => typeof v === 'number')
+                                  .map(([label, value]) => (
+                                    <span key={label} className="inline-flex items-center text-xs bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-full">
+                                      {label}: ${Number(value).toFixed(2)}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

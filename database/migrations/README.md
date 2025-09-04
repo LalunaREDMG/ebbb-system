@@ -24,7 +24,7 @@ If you're setting up a fresh database, simply run the main schema file which alr
 
 This migration adds:
 - `menu_type` column to the `products` table
-- Check constraint to ensure only valid menu types: 'Morning Menu', 'Evening Menu', 'All Day Coffee'
+- Check constraint to ensure only valid menu types: 'Morning Menu', 'Night Menu', 'All Day Coffee'
 - Index on `menu_type` for better query performance
 - Updates existing products with appropriate menu types based on their categories
 - Documentation comment explaining the column purpose
@@ -32,7 +32,7 @@ This migration adds:
 ### Menu Type Schedule
 
 - **Morning Menu**: 6:00 AM - 2:00 PM
-- **Evening Menu**: 4:00 PM - 9:00 PM  
+- **Night Menu**: 4:00 PM - 9:00 PM  
 - **All Day Coffee**: Available Anytime
 
 ## Verification

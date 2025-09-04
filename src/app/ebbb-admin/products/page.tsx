@@ -14,6 +14,8 @@ interface Product {
   image_path: string | null
   category: string
   menu_type: string | null
+  size_variants: Record<string, number> | null
+  is_signature: boolean
   available: boolean
   created_at: string
   updated_at: string
@@ -35,6 +37,8 @@ export default function ProductsPage() {
     image_path: '',
     category: '',
     menu_type: '',
+    size_variants: {} as Record<string, number> | undefined,
+    is_signature: false,
     available: true
   })
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
@@ -61,7 +65,7 @@ export default function ProductsPage() {
     'Sandwiches', 
     'Breakfast',
     
-    // Evening Menu (From 4 PM)
+    // Night Menu (From 4 PM)
     'Burgers',
     'Mains',
     'Entrees',
@@ -164,11 +168,26 @@ export default function ProductsPage() {
         imagePath = path
       }
 
+      // Determine base price: if price field empty and All Day Coffee with variants, use the smallest variant price; else default to 0
+      const parsedPrice = formData.price !== '' ? parseFloat(formData.price) : NaN
+      const variantPrices = formData.size_variants 
+        ? Object.values(formData.size_variants).filter((v): v is number => typeof v === 'number')
+        : []
+      const smallestVariant = variantPrices.length > 0 ? Math.min(...variantPrices) : 0
+      const basePrice = !isNaN(parsedPrice)
+        ? parsedPrice
+        : (formData.menu_type === 'All Day Coffee' && variantPrices.length > 0 ? smallestVariant : 0)
+
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
+        menu_type: formData.menu_type,
+        price: basePrice,
         image_url: imageUrl,
-        image_path: imagePath
+        image_path: imagePath,
+        // Persist size_variants as null if empty object
+        size_variants: formData.size_variants && Object.keys(formData.size_variants).length > 0
+          ? formData.size_variants
+          : null
       }
 
       if (editingProduct) {
@@ -197,6 +216,8 @@ export default function ProductsPage() {
         image_path: '',
         category: '',
         menu_type: '',
+        size_variants: {},
+        is_signature: false,
         available: true
       })
       setSelectedFile(null)
@@ -222,6 +243,8 @@ export default function ProductsPage() {
       image_path: product.image_path || '',
       category: product.category,
       menu_type: product.menu_type || '',
+      size_variants: product.size_variants || {},
+      is_signature: product.is_signature,
       available: product.available
     })
     setCategoryInput(product.category) // Sync category input
@@ -374,91 +397,109 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      {/* Products Grid */}
+      {/* Products List (admin-friendly) */}
       {Object.entries(groupedProducts).map(([category, categoryProducts]) => (
         <div key={category} className="mb-8 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">{category}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {categoryProducts.map((product) => (
-              <div key={product.id} className="bg-white shadow-sm hover:shadow-lg rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 group">
-                {/* Product Image */}
-                <div className="relative h-40 sm:h-48 bg-gray-100">
-                  {product.image_url ? (
-                    <img
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      src={product.image_url}
-                      alt={product.name}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-2 bg-gray-200 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">🍽️</span>
-                        </div>
-                        <p className="text-xs text-gray-500">No image</p>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">{category}</h2>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 text-xs font-semibold text-gray-500 bg-gray-50 border-b">
+              <div className="col-span-5">Product</div>
+              <div className="col-span-2">Menu</div>
+              <div className="col-span-2">Price</div>
+              <div className="col-span-1 text-center">Status</div>
+              <div className="col-span-2 text-right">Actions</div>
+            </div>
+            <ul className="divide-y divide-gray-200">
+              {categoryProducts.map((product) => (
+                <li key={product.id} className="px-3 sm:px-4 py-3 md:grid md:grid-cols-12 md:items-center gap-3">
+                  {/* Product cell */}
+                  <div className="flex items-center gap-3 col-span-5">
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl">🍽️</span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 line-clamp-1 flex items-center gap-1">
+                        <span>{product.name}</span>
+                        {product.is_signature && (
+                          <span title="Signature Dish" className="text-yellow-500" aria-label="Signature">★</span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <span className="inline-block bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full">{product.category}</span>
+                        <span className="inline-block bg-orange-50 text-orange-700 text-[10px] px-2 py-0.5 rounded-full">{product.menu_type === 'Evening Menu' ? 'Night Menu' : product.menu_type}</span>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Status Badge */}
-                  <div className="absolute top-2 right-2">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      product.available
-                        ? 'bg-green-100 text-green-800 border border-green-200'
-                        : 'bg-red-100 text-red-800 border border-red-200'
+                  </div>
+
+                  {/* Menu (for small screens, merged above) */}
+                  <div className="hidden md:block col-span-2 text-sm text-gray-700">{product.menu_type === 'Evening Menu' ? 'Night Menu' : product.menu_type}</div>
+
+                  {/* Price */}
+                  <div className="col-span-2 mt-2 md:mt-0">
+                    {(() => {
+                      const variants = (product as any).size_variants as Record<string, number> | undefined
+                      if (product.menu_type === 'All Day Coffee' && variants && Object.keys(variants).length > 0) {
+                        const entries = Object.entries(variants).filter(([, v]) => typeof v === 'number') as [string, number][]
+                        if (entries.length > 0) {
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              {entries.map(([label, value]) => (
+                                <span key={label} className="inline-flex items-center text-xs bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-full">
+                                  {label} ${value.toFixed(2)}
+                                </span>
+                              ))}
+                            </div>
+                          )
+                        }
+                      }
+                      return (
+                        <span className="text-sm font-bold text-orange-600">${product.price.toFixed(2)}</span>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Status */}
+                  <div className="col-span-1 flex md:justify-center mt-2 md:mt-0">
+                    <span className={`inline-flex px-2 py-1 text-[10px] font-semibold rounded-full ${
+                      product.available ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'
                     }`}>
                       {product.available ? 'Available' : 'Unavailable'}
                     </span>
                   </div>
-                </div>
 
-                {/* Product Info */}
-                <div className="p-4 sm:p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 line-clamp-1">{product.name}</h3>
-                    <span className="text-lg sm:text-xl font-bold text-orange-500">${product.price.toFixed(2)}</span>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description}</p>
-                  
                   {/* Actions */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => toggleAvailability(product)}
-                        className={`p-2 rounded-lg transition-colors duration-300 ${
-                          product.available
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-green-600 hover:bg-green-50'
-                        }`}
-                        title={product.available ? 'Make unavailable' : 'Make available'}
-                      >
-                        {product.available ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-300"
-                        title="Edit product"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-300"
-                        title="Delete product"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    {/* Category Badge */}
-                    <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                      {product.category}
-                    </span>
+                  <div className="col-span-2 flex justify-end gap-2 mt-2 md:mt-0">
+                    <button
+                      onClick={() => toggleAvailability(product)}
+                      className={`p-2 rounded-lg transition-colors duration-300 ${
+                        product.available ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
+                      }`}
+                      title={product.available ? 'Make unavailable' : 'Make available'}
+                    >
+                      {product.available ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-300"
+                      title="Edit product"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-300"
+                      title="Delete product"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-              </div>
-            ))}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       ))}
@@ -538,6 +579,8 @@ export default function ProductsPage() {
                       image_path: '',
                       category: '',
                       menu_type: '',
+                      size_variants: {},
+                      is_signature: false,
                       available: true
                     })
                     setSelectedFile(null)
@@ -678,24 +721,24 @@ export default function ProductsPage() {
                     </label>
 
                     <label className={`relative flex items-center p-4 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
-                      formData.menu_type === 'Evening Menu' 
+                      formData.menu_type === 'Night Menu' 
                         ? 'border-orange-500 bg-orange-50' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}>
                       <input
                         type="radio"
                         name="menu_type"
-                        value="Evening Menu"
-                        checked={formData.menu_type === 'Evening Menu'}
+                        value="Night Menu"
+                        checked={formData.menu_type === 'Night Menu'}
                         onChange={handleChange}
                         className="sr-only"
                       />
                       <div className="flex flex-col items-center text-center w-full">
                         <span className="text-2xl mb-2">🍔</span>
-                        <span className="font-semibold text-gray-800">Evening Menu</span>
+                        <span className="font-semibold text-gray-800">Night Menu</span>
                         <span className="text-xs text-gray-500 mt-1">4:00 PM - 9:00 PM</span>
                       </div>
-                      {formData.menu_type === 'Evening Menu' && (
+                      {formData.menu_type === 'Night Menu' && (
                         <div className="absolute top-2 right-2 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
@@ -745,7 +788,7 @@ export default function ProductsPage() {
                         name="price"
                         value={formData.price}
                         onChange={handleChange}
-                        required
+                        required={!(formData.menu_type === 'All Day Coffee' && formData.size_variants && Object.keys(formData.size_variants).length > 0)}
                         step="0.01"
                         min="0"
                         className="w-full px-4 py-4 pl-8 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300"
@@ -809,6 +852,73 @@ export default function ProductsPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Size Variants (Only for All Day Coffee) */}
+                {formData.menu_type === 'All Day Coffee' && (
+                  <div className="form-field">
+                    <label className="flex items-center text-sm font-semibold text-gray-800 mb-3">
+                      <span className="bg-orange-100 text-orange-600 w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">6</span>
+                      Size Variants (optional)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">Small</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          inputMode="decimal"
+                          value={
+                            formData.size_variants && formData.size_variants['Small'] !== undefined
+                              ? String(formData.size_variants['Small'])
+                              : ''
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setFormData(prev => ({
+                              ...prev,
+                              size_variants: {
+                                ...(prev.size_variants || {}),
+                                Small: value === '' ? undefined as unknown as number : parseFloat(value)
+                              }
+                            }))
+                          }}
+                          className="w-full pl-14 pr-3 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300"
+                          placeholder="e.g., 2.50"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">$</div>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">Large</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          inputMode="decimal"
+                          value={
+                            formData.size_variants && formData.size_variants['Large'] !== undefined
+                              ? String(formData.size_variants['Large'])
+                              : ''
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setFormData(prev => ({
+                              ...prev,
+                              size_variants: {
+                                ...(prev.size_variants || {}),
+                                Large: value === '' ? undefined as unknown as number : parseFloat(value)
+                              }
+                            }))
+                          }}
+                          className="w-full pl-14 pr-3 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-3 focus:ring-orange-500/30 focus:border-orange-500 transition-all duration-300 text-gray-800 placeholder-gray-400 hover:border-gray-300"
+                          placeholder="e.g., 3.00"
+                        />
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">$</div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Leave blank to use the base price only.</p>
+                  </div>
+                )}
 
                 {/* Image Upload Field */}
                 <div className="form-field">
@@ -894,6 +1004,29 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
+                {/* Signature Dish Toggle */}
+                <div className="form-field">
+                  <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-2xl border-2 border-yellow-200">
+                    <div className="flex items-center space-x-3">
+                      <span className="bg-yellow-100 text-yellow-600 w-6 h-6 rounded-full flex items-center justify-center text-xs">★</span>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-800">Signature Dish</label>
+                        <p className="text-xs text-gray-500">Feature this item on Signature Dishes</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="is_signature"
+                        checked={!!formData.is_signature}
+                        onChange={(e) => setFormData(prev => ({ ...prev, is_signature: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Enhanced Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
                   <button
@@ -929,6 +1062,8 @@ export default function ProductsPage() {
                         image_path: '',
                         category: '',
                         menu_type: '',
+                        size_variants: {},
+                        is_signature: false,
                         available: true
                       })
                       setSelectedFile(null)

@@ -101,7 +101,7 @@ export default function HeroSection({ announcements, groupedProducts, isVisible 
                 </div>
                 
                 {/* Restaurant Info Pills */}
-                <div className="flex flex-wrap items-center gap-2 text-sm justify-center md:justify-start">
+                {/* <div className="flex flex-wrap items-center gap-2 text-sm justify-center md:justify-start">
                   <div className="inline-flex items-center bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
                     <Clock className="w-4 h-4 mr-2 text-yellow-200" />
                     <span>Hours today: 11am–10pm</span>
@@ -114,7 +114,7 @@ export default function HeroSection({ announcements, groupedProducts, isVisible 
                     <Phone className="w-4 h-4 mr-2 text-yellow-200" />
                     <span>Reserve now</span>
                   </Link>
-                </div>
+                </div> */}
               </div>
 
               {/* Right card - DJ Event or Branded */}

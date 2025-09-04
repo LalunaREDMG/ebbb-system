@@ -93,7 +93,9 @@ CREATE TABLE products (
   image_url TEXT,
   image_path TEXT, -- Store the path in the bucket for easier management
   category VARCHAR(100) NOT NULL,
-  menu_type VARCHAR(50) CHECK (menu_type IN ('Morning Menu', 'Evening Menu', 'All Day Coffee')),
+  menu_type VARCHAR(50) CHECK (menu_type IN ('Morning Menu', 'Night Menu', 'All Day Coffee')),
+  size_variants JSONB,
+  is_signature BOOLEAN DEFAULT false,
   available BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -216,11 +218,11 @@ ON CONFLICT (username) DO NOTHING;
 
 -- Insert sample data with placeholder image paths and menu types
 INSERT INTO products (name, description, price, image_path, category, menu_type, available) VALUES
-('Signature Burger', 'Our famous beef burger with special sauce, lettuce, tomato, and cheese', 18.50, 'burger.jpg', 'Mains', 'Evening Menu', true),
-('Fish & Chips', 'Fresh local fish with crispy chips and house-made tartar sauce', 22.00, 'fish-chips.jpg', 'Mains', 'Evening Menu', true),
+('Signature Burger', 'Our famous beef burger with special sauce, lettuce, tomato, and cheese', 18.50, 'burger.jpg', 'Mains', 'Night Menu', true),
+('Fish & Chips', 'Fresh local fish with crispy chips and house-made tartar sauce', 22.00, 'fish-chips.jpg', 'Mains', 'Night Menu', true),
 ('Caesar Salad', 'Crisp romaine lettuce with parmesan, croutons, and caesar dressing', 16.00, 'caesar.jpg', 'Salads', 'Morning Menu', true),
 ('Craft Beer', 'Local Perth brewery selection', 8.50, 'beer.jpg', 'Drinks', 'All Day Coffee', true),
-('Chocolate Brownie', 'Warm chocolate brownie with vanilla ice cream', 12.00, 'brownie.jpg', 'Desserts', 'Evening Menu', true);
+('Chocolate Brownie', 'Warm chocolate brownie with vanilla ice cream', 12.00, 'brownie.jpg', 'Desserts', 'Night Menu', true);
 
 INSERT INTO announcements (title, content, published) VALUES
 ('Grand Opening!', 'We are excited to announce our grand opening! Join us for special opening week deals and live music every evening.', true),

@@ -11,6 +11,8 @@ interface Product {
   image_url: string | null
   image_path: string | null
   category: string
+  menu_type: 'Morning Menu' | 'Night Menu' | 'All Day Coffee' | string
+  size_variants?: Record<string, number> | null
   available: boolean
 }
 

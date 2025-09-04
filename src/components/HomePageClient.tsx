@@ -18,6 +18,7 @@ interface Product {
   image_url: string | null
   image_path: string | null
   category: string
+  is_signature?: boolean
   available: boolean
 }
 
@@ -212,15 +213,17 @@ function MenuSection({ groupedProducts, products }: { groupedProducts: Record<st
         {Object.keys(groupedProducts).length > 0 ? (
           <div className="mb-8 md:mb-12">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {Object.entries(groupedProducts)
-                .flatMap(([category, categoryProducts]) => categoryProducts)
-                .slice(0, 6) // Show only top 6 products
+              {(products.filter(p => p.is_signature)
+                  .concat(products.filter(p => !p.is_signature)) // fallback fill from rest
+                )
+                .slice(0, 6)
                 .map((product, productIndex) => (
                   <ProductCard 
                     key={product.id} 
                     product={product} 
                     index={productIndex}
                     className="animate-fade-in-up"
+                    hideSignatureIcon
                   />
                 ))}
             </div>

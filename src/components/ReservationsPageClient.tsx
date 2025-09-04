@@ -331,7 +331,8 @@ export default function ReservationsPageClient({ error }: ReservationsPageClient
                     <Clock className="w-4 h-4 md:w-5 md:h-5 text-orange-500 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="font-medium text-gray-900 text-sm md:text-base">Opening Hours</p>
-                      <p className="text-xs md:text-sm text-gray-600">Mon-Thu: 11am-9pm<br />Fri-Sat: 11am-10pm<br />Sun: 11am-8pm</p>
+                      <p className="text-xs md:text-sm text-gray-600">Day: 06:00am-02:00pm</p>
+                      <p className="text-xs md:text-sm text-gray-600">Night: 04:00pm-09:00pm</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-2 md:space-x-3">
